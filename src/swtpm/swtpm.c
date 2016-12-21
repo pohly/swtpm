@@ -133,6 +133,7 @@ static void usage(FILE *file, const char *prgname, const char *iface)
     "                 : Expect UnixIO connections on the given path; if fd is\n"
     "                   provided, packets wil be read from it directly;\n"
     "-r|--runas <user>: change to the given user\n"
+    "--tpm2           : choose TPM2 functionality\n"
     "-h|--help        : display this help screen and terminate\n"
     "\n",
     prgname, iface);
@@ -175,8 +176,10 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
         {"pid"       , required_argument, 0, 'P'},
         {"tpmstate"  , required_argument, 0, 's'},
         {"ctrl"      , required_argument, 0, 'C'},
+        {"tpm2"      ,       no_argument, 0, '2'},
         {NULL        , 0                , 0, 0  },
     };
+    TPMLIB_TPMVersion tpmversion = TPMLIB_TPM_VERSION_1_2;
 
     while (TRUE) {
         opt = getopt_long(argc, argv, "dhp:f:tr:", longopts, &longindex);
@@ -263,6 +266,10 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
             ctrlchdata = optarg;
             break;
 
+        case '2':
+            tpmversion = TPMLIB_TPM_VERSION_2;
+            break;
+
         case 'h':
             usage(stdout, prgname, iface);
             exit(EXIT_SUCCESS);
@@ -282,6 +289,8 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
         if (change_process_owner(runas) < 0)
             return EXIT_FAILURE;
     }
+
+    SWTPM_NVRAM_Set_TPMVersion(tpmversion);
 
     if (handle_log_options(logdata) < 0 ||
         handle_key_options(keydata) < 0 ||
@@ -347,7 +356,7 @@ int swtpm_main(int argc, char **argv, const char *prgname, const char *iface)
            tpmlib_get_tpm_property(TPMPROP_TPM_MAX_NV_DEFINED_SIZE));
 #endif
 
-    if ((rc = tpmlib_start(&callbacks, 0)))
+    if ((rc = tpmlib_start(&callbacks, 0, tpmversion)))
         goto error_no_tpm;
 
     if (install_sighandlers(notify_fd, sigterm_handler) < 0)

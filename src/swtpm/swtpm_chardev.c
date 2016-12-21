@@ -124,6 +124,7 @@ static void usage(FILE *file, const char *prgname, const char *iface)
     "                   into; the TPM_PATH environment variable can be used\n"
     "                   instead\n"
     "-r|--runas <user>: change to the given user\n"
+    "--tpm2           : choose TPM2 functionality\n"
     "-h|--help        : display this help screen and terminate\n"
     "\n",
     prgname, iface);
@@ -138,6 +139,7 @@ int swtpm_chardev_main(int argc, char **argv, const char *prgname, const char *i
     struct mainLoopParams mlp = {
         .fd = -1,
         .flags = 0,
+        .tpmversion = TPMLIB_TPM_VERSION_1_2,
     };
     unsigned long val;
     char *end_ptr;
@@ -161,6 +163,7 @@ int swtpm_chardev_main(int argc, char **argv, const char *prgname, const char *i
         {"pid"       , required_argument, 0, 'P'},
         {"tpmstate"  , required_argument, 0, 's'},
         {"ctrl"      , required_argument, 0, 'C'},
+        {"tpm2"      ,       no_argument, 0, '2'},
         {NULL        , 0                , 0, 0  },
     };
 
@@ -242,6 +245,10 @@ int swtpm_chardev_main(int argc, char **argv, const char *prgname, const char *i
             ctrlchdata = optarg;
             break;
 
+        case '2':
+            mlp.tpmversion = TPMLIB_TPM_VERSION_2;
+            break;
+
         case 'h':
             usage(stdout, prgname, iface);
             exit(EXIT_SUCCESS);
@@ -256,10 +263,7 @@ int swtpm_chardev_main(int argc, char **argv, const char *prgname, const char *i
         }
     }
 
-    if (mlp.fd < 0) {
-        logprintf(STDERR_FILENO, "Error: Missing character device or file descriptor\n");
-        return EXIT_FAILURE;
-    }
+    SWTPM_NVRAM_Set_TPMVersion(mlp.tpmversion);
 
     /* change process ownership before accessing files */
     if (runas) {
@@ -316,7 +320,7 @@ int swtpm_chardev_main(int argc, char **argv, const char *prgname, const char *i
            tpmlib_get_tpm_property(TPMPROP_TPM_MAX_NV_DEFINED_SIZE));
 #endif
 
-    if ((rc = tpmlib_start(&callbacks, 0)))
+    if ((rc = tpmlib_start(&callbacks, 0, mlp.tpmversion)))
         goto error_no_tpm;
 
     if (install_sighandlers(notify_fd, sigterm_handler) < 0)
