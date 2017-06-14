@@ -45,6 +45,7 @@ TESTS += \
 	test_tpm2_savestate \
 	test_tpm2_save_load_state_3 \
 	test_tpm2_setbuffersize \
+	test_tpm2_volatilestate \
 	test_tpm2_wrongorder \
 	test_tpm2_probe \
 	\
